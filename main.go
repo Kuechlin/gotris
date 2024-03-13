@@ -8,6 +8,7 @@ import (
 
 var ticker *time.Ticker
 
+// vsp +term
 func main() {
 	exec.Command("stty", "-F", "/dev/tty", "cbreak", "min", "1").Run()
 	exec.Command("stty", "-F", "/dev/tty", "-echo").Run()

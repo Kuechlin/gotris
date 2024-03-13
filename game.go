@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"time"
 )
@@ -19,9 +18,9 @@ func NewGame(done *chan bool) *Game {
 		done:   done,
 		ticker: time.NewTicker(time.Second),
 		field: Field{
-			Curr: Piece{
+			Curr: Current{
 				Id: 1,
-				X:  0,
+				X:  W / 2,
 				Y:  0,
 			},
 		},
@@ -79,7 +78,7 @@ func (g *Game) inputs() {
 		if b[0] == 27 && b[1] == 91 {
 			switch b[2] {
 			case 65:
-				fmt.Println("up")
+				g.rotate()
 			case 66:
 				g.moveDown()
 			case 67:
@@ -91,13 +90,29 @@ func (g *Game) inputs() {
 	}
 }
 
+func (g *Game) rotate() {
+	if g.field.Collision(0, 0, 1) {
+		return
+	}
+	g.field.Curr.R = nextRotation(g.field.Curr.R, 1)
+	g.Redraw()
+}
+
 func (g *Game) moveDown() {
-	if g.field.CollisionDown() {
+	if g.field.Collision(0, 1, 0) {
 		// place block
-		i := idx(g.field.Curr.X, g.field.Curr.Y)
-		g.field.Cells[i] = g.field.Curr.Id
+		g.log("place block")
+		g.field.Place()
+		lines := g.field.DropLines()
+		if lines > 0 {
+			g.log(fmt.Sprintf("%d lines dropped", lines))
+		}
 		// Spawn next block
-		g.Spawn()
+		g.field.Spawn()
+		g.Redraw()
+		if g.field.Collision(0, 1, 0) {
+			g.End()
+		}
 	} else {
 		// move
 		g.log("move down")
@@ -107,7 +122,7 @@ func (g *Game) moveDown() {
 }
 
 func (g *Game) moveLeft() {
-	if g.field.CollisionLeft() {
+	if g.field.Collision(-1, 0, 0) {
 		return
 	}
 	g.log("move left")
@@ -116,7 +131,7 @@ func (g *Game) moveLeft() {
 }
 
 func (g *Game) moveRight() {
-	if g.field.CollisionRight() {
+	if g.field.Collision(1, 0, 0) {
 		return
 	}
 	g.log("move right")
@@ -124,22 +139,8 @@ func (g *Game) moveRight() {
 	g.Redraw()
 }
 
-func (g *Game) Spawn() {
-	p := Piece{
-		X:  W / 2,
-		Y:  0,
-		Id: 1 + rand.Intn(4),
-	}
-	i := idx(p.X, p.Y)
-
-	if g.field.Cells[i] != 0 {
-		// end game
-		fmt.Println("gg")
-		*g.done <- true
-		return
-	}
-
-	g.log(fmt.Sprintf("span %d at %d, %d", p.Id, p.X, p.Y))
-	g.field.Curr = p
-	g.Redraw()
+func (g *Game) End() {
+	// end game
+	fmt.Println("gg")
+	*g.done <- true
 }

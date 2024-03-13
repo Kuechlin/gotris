@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"strings"
 )
 
@@ -8,56 +9,161 @@ const W = 10
 const H = 20
 
 var COLORS = map[int]int{
-	0: 0,
-	1: 10,
-	2: 20,
-	3: 40,
-	4: 50,
+	1: 1,
+	2: 2,
+	3: 4,
+	4: 5,
+	5: 6,
+	6: 7,
+	7: 8,
 }
 
 type Field struct {
-	Curr  Piece
+	Curr  Current
 	Cells [W * H]int
 }
 
-type Piece struct {
+// r 0 ^
+// r 1 >
+// r 2 v
+// r 3 <
+type Current struct {
 	Id int
+	R  int
 	X  int
 	Y  int
 }
+type Point struct {
+	X int
+	Y int
+}
 
 func idx(x int, y int) int {
-	return x + W*y
+	return idxw(x, y, W)
+}
+func idxw(x int, y int, w int) int {
+	return x + w*y
 }
 
-func (f *Field) CollisionDown() bool {
-	y := f.Curr.Y + 1
-	next := idx(f.Curr.X, y)
-	return y >= H || f.Cells[next] != 0
+func contains(arr []Point, x int, y int) bool {
+	for _, p := range arr {
+		if p.X == x && p.Y == y {
+			return true
+		}
+	}
+	return false
 }
-func (f *Field) CollisionLeft() bool {
-	x := f.Curr.X - 1
-	next := idx(x, f.Curr.Y)
-	return x < 0 || f.Cells[next] != 0
+
+func nextRotation(r int, offset int) int {
+	next := r + offset
+	if next > 3 {
+		return 0
+	}
+	return next
 }
-func (f *Field) CollisionRight() bool {
-	x := f.Curr.X + 1
-	next := idx(x, f.Curr.Y)
-	return x >= W || f.Cells[next] != 0
+
+func (c *Current) getPoints(offsetX int, offsetY int, offsetR int) []Point {
+	p := pieces[c.Id]
+	m := p.ToMatrix(nextRotation(c.R, offsetR))
+
+	points := []Point{}
+
+	anchor := (p.Size + p.Size%2) / 2
+
+	for y := 0; y < p.Size; y++ {
+		for x := 0; x < p.Size; x++ {
+			if !m[y][x] {
+				continue
+			}
+			x1 := c.X - anchor + x + offsetX
+			y1 := c.Y - anchor + y + offsetY
+			points = append(points, Point{
+				X: x1,
+				Y: y1,
+			})
+		}
+	}
+
+	return points
+}
+
+func (f *Field) Place() {
+	for _, p := range f.Curr.getPoints(0, 0, 0) {
+		i := idx(p.X, p.Y)
+		f.Cells[i] = f.Curr.Id
+	}
+}
+
+func (f *Field) DropLines() int {
+	var lines []int
+	// find lines to drop
+	for y := 0; y < H; y++ {
+		full := true
+		for x := 0; x < W; x++ {
+			if f.Cells[idx(x, y)] == 0 {
+				full = false
+			}
+		}
+		if full {
+			lines = append(lines, idx(0, y))
+		}
+	}
+
+	if len(lines) == 0 {
+		return 0
+	}
+	// build new cells array
+	cells := make([]int, len(lines)*W)
+	last := 0
+	for _, i := range lines {
+		cells = append(cells, f.Cells[last:i]...)
+		last = i + W
+	}
+	cells = append(cells, f.Cells[last:]...)
+	// apply update
+	for i, val := range cells {
+		f.Cells[i] = val
+	}
+
+	return len(lines)
+}
+
+func (f *Field) Spawn() {
+	id := 1 + rand.Intn(7)
+	f.Curr = Current{
+		Id: id,
+		X:  W / 2,
+		Y:  0,
+	}
+}
+
+func (f *Field) Collision(offsetX int, offsetY int, offsetR int) bool {
+	for _, p := range f.Curr.getPoints(offsetX, offsetY, offsetR) {
+		if p.X < 0 || p.X >= W || p.Y >= H {
+			return true
+		} else if p.Y < 0 {
+			continue
+		}
+		i := idx(p.X, p.Y)
+		if f.Cells[i] != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (f *Field) String() []string {
 	lines := []string{}
 	lines = append(lines, "┌"+strings.Repeat("─", W*2)+"┐")
-	piece := idx(f.Curr.X, f.Curr.Y)
+	points := f.Curr.getPoints(0, 0, 0)
 	for y := 0; y < H; y++ {
 		value := "│"
 		for x := 0; x < W; x++ {
-			i := idx(x, y)
-			if i == piece {
+			if contains(points, x, y) {
 				value += block(COLORS[f.Curr.Id])
 			} else {
-				val := f.Cells[idx(x, y)]
+				i := idx(x, y)
+				val := f.Cells[i]
 				if val == 0 {
 					value += empty()
 				} else {
