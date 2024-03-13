@@ -2,24 +2,14 @@ package main
 
 import (
 	"math/rand"
-	"strings"
 )
 
 const W = 10
 const H = 20
 
-var COLORS = map[int]int{
-	1: 1,
-	2: 2,
-	3: 4,
-	4: 5,
-	5: 6,
-	6: 7,
-	7: 8,
-}
-
 type Field struct {
 	Curr  Current
+	Next  int
 	Cells [W * H]int
 }
 
@@ -129,12 +119,12 @@ func (f *Field) DropLines() int {
 }
 
 func (f *Field) Spawn() {
-	id := 1 + rand.Intn(7)
 	f.Curr = Current{
-		Id: id,
+		Id: f.Next,
 		X:  W / 2,
 		Y:  0,
 	}
+	f.Next = 1 + rand.Intn(7)
 }
 
 func (f *Field) Collision(offsetX int, offsetY int, offsetR int) bool {
@@ -152,28 +142,47 @@ func (f *Field) Collision(offsetX int, offsetY int, offsetR int) bool {
 	return false
 }
 
-func (f *Field) String() []string {
+func (f *Field) Display() []string {
 	lines := []string{}
-	lines = append(lines, "┌"+strings.Repeat("─", W*2)+"┐")
 	points := f.Curr.getPoints(0, 0, 0)
 	for y := 0; y < H; y++ {
-		value := "│"
+		odd := y%2 == 0
+		line := ""
 		for x := 0; x < W; x++ {
 			if contains(points, x, y) {
-				value += block(COLORS[f.Curr.Id])
+				line += block(f.Curr.Id)
 			} else {
 				i := idx(x, y)
 				val := f.Cells[i]
 				if val == 0 {
-					value += empty()
+					line += empty(odd)
 				} else {
-					value += block(COLORS[val])
+					line += block(val)
 				}
 			}
+			odd = !odd
 		}
-		value += "│"
-		lines = append(lines, value)
+		lines = append(lines, line)
 	}
-	lines = append(lines, "└"+strings.Repeat("─", W*2)+"┘")
-	return lines
+	return container(lines, W*2)
+}
+
+func (f *Field) Preview() []string {
+	lines := []string{}
+	p := pieces[f.Next]
+	m := p.ToMatrix(0)
+	for y := 0; y < 2; y++ {
+		line := ""
+		for x := 0; x < 4; x++ {
+			if x >= p.Size {
+				line += empty(false)
+			} else if m[y][x] {
+				line += block(p.Id)
+			} else {
+				line += empty(false)
+			}
+		}
+		lines = append(lines, line)
+	}
+	return container(lines, 8)
 }

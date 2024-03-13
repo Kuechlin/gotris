@@ -11,20 +11,20 @@ type Game struct {
 	ticker *time.Ticker
 	field  Field
 	logs   []string
+	level  int
+	score  int
 }
 
 func NewGame(done *chan bool) *Game {
 	game := Game{
 		done:   done,
-		ticker: time.NewTicker(time.Second),
-		field: Field{
-			Curr: Current{
-				Id: 1,
-				X:  W / 2,
-				Y:  0,
-			},
-		},
+		ticker: time.NewTicker(getSpeed(0)),
+		level:  0,
+		score:  0,
+		field:  Field{},
 	}
+	game.field.Spawn()
+	game.field.Spawn()
 
 	go game.update()
 	go game.inputs()
@@ -33,11 +33,28 @@ func NewGame(done *chan bool) *Game {
 }
 
 func (g *Game) Draw() {
-	lines := g.field.String()
-	for i, line := range lines {
+	left := g.field.Display()
+	right := []string{
+		"# preview",
+	}
+	right = append(right, g.field.Preview()...)
+
+	right = append(right,
+		"",
+		"level: "+colored(5, fmt.Sprint(g.level)),
+		"score: "+colored(5, fmt.Sprint(g.score)),
+	)
+
+	// add logs
+	right = append(right, "", "# logs")
+	for _, l := range g.logs {
+		right = append(right, "- "+l)
+	}
+
+	for i, line := range left {
 		val := "  " + line
-		if len(g.logs) > i {
-			val += "  - " + g.logs[i]
+		if i < len(right) {
+			val += "    " + right[i]
 		}
 		fmt.Println(val)
 	}
@@ -63,6 +80,39 @@ func (g *Game) log(msg string) {
 	} else {
 		g.logs = append(g.logs, msg)
 	}
+}
+
+func (g *Game) scoreLines(count int) {
+	switch count {
+	case 1:
+		g.score += 40 * (g.level + 1)
+	case 2:
+		g.score += 100 * (g.level + 1)
+	case 3:
+		g.score += 300 * (g.level + 1)
+	case 4:
+		g.score += 1200 * (g.level + 1)
+	}
+	g.log(fmt.Sprintf("%d lines dropped", count))
+	next := getLevel(g.score)
+	if next != g.level {
+		g.level = next
+		g.ticker.Reset(getSpeed(next))
+		g.log("level up")
+	}
+}
+
+func getLevel(score int) int {
+	return score / 200
+}
+
+func getSpeed(level int) time.Duration {
+	if level > 100 {
+		return 100 * time.Millisecond
+	}
+	p := float64(100-level) / 100
+	val := 900*p + 100
+	return time.Duration(val) * time.Millisecond
 }
 
 // ESC  [
@@ -105,7 +155,7 @@ func (g *Game) moveDown() {
 		g.field.Place()
 		lines := g.field.DropLines()
 		if lines > 0 {
-			g.log(fmt.Sprintf("%d lines dropped", lines))
+			g.scoreLines(lines)
 		}
 		// Spawn next block
 		g.field.Spawn()

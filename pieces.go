@@ -52,7 +52,7 @@ var pieceT = Piece{
 	},
 }
 var pieceL = Piece{
-	Id:   PcJ,
+	Id:   PcL,
 	Size: 3,
 	Cells: []bool{
 		false, false, true,

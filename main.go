@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os/exec"
 	"time"
 )
@@ -16,7 +15,8 @@ func main() {
 
 	done := make(chan bool)
 	game := NewGame(&done)
-	fmt.Println("> gotris")
+
+	title()
 	game.Draw()
 
 	for {
