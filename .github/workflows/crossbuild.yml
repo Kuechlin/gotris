@@ -1,27 +1,46 @@
-# cross build go https://github.com/marketplace/actions/go-cross-build
+# cross build go https://github.com/marketplace/actions/go-release-binary
 
-# workflow name
-name: Generate release-artifacts
-
-# on events
-on:
-  release:
-    types: 
-        - created
-
-# workflow tasks
+on: release
+name: Build Release
 jobs:
-  generate:
-    name: Generate cross-platform builds
-    runs-on: ubuntu-latest
+  release:
+    name: Create Release
+    runs-on: 'ubuntu-latest'
+    strategy:
+      matrix:
+        goosarch:
+#          - 'linux/386'
+          - 'linux/amd64'
+#          - 'windows/386'
+          - 'windows/amd64'
     steps:
-      - name: Checkout the repository
+      - name: Checkout code
         uses: actions/checkout@v2
-      - name: Generate build files
-        uses: thatisuday/go-cross-build@v1
         with:
-            platforms: 'linux/amd64, windows/amd64'
-            package: ''
-            name: 'gotris'
-            compress: 'false'
-            dest: 'dist'
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.21.7'
+      - name: Get OS and arch info
+        run: |
+          GOOSARCH=${{matrix.goosarch}}
+          GOOS=${GOOSARCH%/*}
+          GOARCH=${GOOSARCH#*/}
+          BINARY_NAME=${{github.repository}}-$GOOS-$GOARCH
+          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+          echo "GOOS=$GOOS" >> $GITHUB_ENV
+          echo "GOARCH=$GOARCH" >> $GITHUB_ENV
+      - name: Build
+        run: |
+          go build -o "$BINARY_NAME" -v
+      - name: Release Notes
+        run:
+          git log $(git describe HEAD~ --tags --abbrev=0)..HEAD --pretty='format:* %h %s%n  * %an <%ae>' --no-merges >> ".github/RELEASE-TEMPLATE.md"
+      - name: Release with Notes
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: ".github/RELEASE-TEMPLATE.md"
+          draft: true
+          files: ${{env.BINARY_NAME}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
