@@ -85,13 +85,13 @@ func (g *Game) log(msg string) {
 func (g *Game) scoreLines(count int) {
 	switch count {
 	case 1:
-		g.score += 40 * (g.level + 1)
+		g.score += 40
 	case 2:
-		g.score += 100 * (g.level + 1)
+		g.score += 100
 	case 3:
-		g.score += 300 * (g.level + 1)
+		g.score += 300
 	case 4:
-		g.score += 1200 * (g.level + 1)
+		g.score += 1200
 	}
 	g.log(fmt.Sprintf("%d lines dropped", count))
 	next := getLevel(g.score)
