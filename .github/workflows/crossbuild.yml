@@ -1,7 +1,17 @@
-# cross build go https://github.com/marketplace/actions/go-release-binary
+# https://github.com/jidicula/template-go/blob/57ddf441732bf905c893d547b9dc5efa2dc039a0/.github/workflows/release-draft.yml
 
-on: release
-name: Build Release
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+name: Latest Release
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   release:
     name: Create Release
