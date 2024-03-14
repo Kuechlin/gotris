@@ -12,6 +12,10 @@ defaults:
   run:
     shell: bash
 
+permissions:
+  contents: write
+  discussions: write
+
 jobs:
   release:
     name: Create Release
@@ -47,10 +51,8 @@ jobs:
         run:
           git log $(git describe HEAD~ --tags --abbrev=0)..HEAD --pretty='format:* %h %s%n  * %an <%ae>' --no-merges >> ".github/RELEASE-TEMPLATE.md"
       - name: Release with Notes
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v4
         with:
           body_path: ".github/RELEASE-TEMPLATE.md"
           draft: true
           files: ${{env.BINARY_NAME}}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
